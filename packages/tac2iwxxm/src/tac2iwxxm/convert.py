@@ -30,6 +30,7 @@ from tac2iwxxm.profile_registry import (
     EMIT_NZ_CAA_MET,
     EMIT_UK_METOFFICE,
     resolve_semantic_profile,
+    supported_iwxxm_versions_for_profile,
 )
 from tac2iwxxm.profiles.annex3 import emit_metar_speci_annex3
 from tac2iwxxm.profiles.annex3_products import (
@@ -621,10 +622,18 @@ def convert(
             "UNSUPPORTED_PROFILE",
             f"profile {profile_l} not supported yet for product {product_u!r}",
         )
-    if profile_l == EMIT_CA_ECCC and effective_iwxxm_version != CA_IWXXM_VERSION:
+    supported_versions = supported_iwxxm_versions_for_profile(profile_l)
+    if effective_iwxxm_version not in supported_versions:
+        if profile_l == EMIT_CA_ECCC:
+            message = f"profile ca_eccc requires iwxxm_version {CA_IWXXM_VERSION!r}, got {effective_iwxxm_version!r}"
+        else:
+            message = (
+                f"profile {profile_l} supports iwxxm_version(s) {sorted(supported_versions)!r}, "
+                f"got {effective_iwxxm_version!r}"
+            )
         return _fail(
             "INVALID_IWXXM_VERSION",
-            f"profile ca_eccc requires iwxxm_version {CA_IWXXM_VERSION!r}, got {effective_iwxxm_version!r}",
+            message,
         )
 
     status_override: str | None = None

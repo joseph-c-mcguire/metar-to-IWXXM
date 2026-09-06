@@ -53,14 +53,45 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["Conversion"])
 
 
-def _resolve_effective_iwxxm_version(requested_version: str, *, semantic_canonical: str | None) -> str:
-    """Resolve request IWXXM version, including profile-scoped defaults."""
+def _resolve_effective_iwxxm_version(
+    requested_version: str,
+    *,
+    semantic_canonical: str | None,
+    emit_profile: str,
+) -> str:
+    """Resolve and validate request IWXXM version for a semantic profile."""
     requested = requested_version.strip()
-    if requested:
-        return requested
-    if semantic_canonical == "ca_eccc":
-        return CA_IWXXM_VERSION
-    return "2025-2"
+    if not requested:
+        requested = CA_IWXXM_VERSION if semantic_canonical == "ca_eccc" else "2025-2"
+
+    try:
+        from src.config.iwxxm_versions import get_version_config_for_emit_profile, normalize_version
+    except ImportError:
+        from config.iwxxm_versions import get_version_config_for_emit_profile, normalize_version
+
+    try:
+        normalized = normalize_version(requested)
+        get_version_config_for_emit_profile(normalized, emit_profile)
+    except ValueError as e:
+        logger.warning("[CONVERT] Invalid IWXXM version requested: %s", requested)
+        raise HTTPException(
+            status_code=400,
+            detail=ErrorDetail(
+                message=f"Invalid IWXXM version: {e}",
+                errors=[str(e)],
+                issues=[
+                    ConversionIssue(
+                        source="request",
+                        message=str(e),
+                        severity=ConversionIssueSeverity.ERROR,
+                        hint="Use a supported IWXXM version such as 2025-2 or 2023-1.",
+                        code="INVALID_IWXXM_VERSION",
+                    )
+                ],
+                total_errors=1,
+            ).model_dump(),
+        ) from e
+    return normalized
 
 
 def _wire_payload_dict(raw_obj: object) -> dict[str, Any]:
@@ -138,7 +169,11 @@ async def convert_bulletin(
     )
     emit_profile: str = str(wire.emit_key)
     profile = emit_profile
-    iwxxm_version = _resolve_effective_iwxxm_version(iwxxm_version, semantic_canonical=wire.semantic_canonical)
+    iwxxm_version = _resolve_effective_iwxxm_version(
+        iwxxm_version,
+        semantic_canonical=wire.semantic_canonical,
+        emit_profile=emit_profile,
+    )
     api_surface._resolve_request_extensions(extensions, None)
 
     content_type = (request.headers.get("content-type") or "").lower()
@@ -544,7 +579,11 @@ async def convert(
     )
     emit_profile: str = str(wire.emit_key)
     profile = emit_profile
-    iwxxm_version = _resolve_effective_iwxxm_version(iwxxm_version, semantic_canonical=wire.semantic_canonical)
+    iwxxm_version = _resolve_effective_iwxxm_version(
+        iwxxm_version,
+        semantic_canonical=wire.semantic_canonical,
+        emit_profile=emit_profile,
+    )
 
     json_extensions = getattr(request_body, "extensions", None) if request_body is not None else None
     resolved_extensions = api_surface._resolve_request_extensions(extensions, json_extensions)
@@ -717,35 +756,6 @@ async def convert(
             "[CONVERT] include_nil_reasons=false accepted; tac2iwxxm may still emit "
             "nilReason on NIL reports until engine honors the flag (ADR-024 placeholder)",
         )
-
-    # Validate and normalize IWXXM version
-    try:
-        from src.config.iwxxm_versions import get_version_config_for_emit_profile, normalize_version
-    except ImportError:
-        from config.iwxxm_versions import get_version_config_for_emit_profile, normalize_version
-
-    try:
-        iwxxm_version = normalize_version(iwxxm_version)
-        get_version_config_for_emit_profile(iwxxm_version, profile)
-    except ValueError as e:
-        logger.warning("[CONVERT] Invalid IWXXM version requested: %s", iwxxm_version)
-        raise HTTPException(
-            status_code=400,
-            detail=ErrorDetail(
-                message=f"Invalid IWXXM version: {e}",
-                errors=[str(e)],
-                issues=[
-                    ConversionIssue(
-                        source="request",
-                        message=str(e),
-                        severity=ConversionIssueSeverity.ERROR,
-                        hint="Use a supported IWXXM version such as 2025-2 or 2023-1.",
-                        code="INVALID_IWXXM_VERSION",
-                    )
-                ],
-                total_errors=1,
-            ).model_dump(),
-        ) from e
 
     results: list[ConversionResult] = []
     errors: list[str] = []

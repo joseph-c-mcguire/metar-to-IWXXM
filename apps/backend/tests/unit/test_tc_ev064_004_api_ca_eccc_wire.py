@@ -92,6 +92,23 @@ def test_tc_ev064_004_ca_eccc_rejects_wrong_iwxxm_version(client: TestClient) ->
     assert response.status_code in {400, 422}, response.text[:500]
 
 
+@pytest.mark.parametrize("semantic_profile", ["ICAO_2025", "US_FAA_NWS", "AU_BOM", "NZ_CAA_MET"])
+def test_tc_ev064_004_non_ca_profiles_reject_profile_scoped_3_0_0(
+    client: TestClient,
+    semantic_profile: str,
+) -> None:
+    response = client.post(
+        "/api/v1/convert",
+        files=_convert_files(
+            semantic_profile=(None, semantic_profile),
+            iwxxm_version=(None, _CA_IWXXM_VERSION),
+        ),
+    )
+    assert response.status_code == 400, response.text[:500]
+    detail = response.json()["detail"]
+    assert detail["issues"][0]["code"] == "INVALID_IWXXM_VERSION"
+
+
 def test_tc_ev064_004_ca_eccc_defaults_profile_pinned_version_when_omitted(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,

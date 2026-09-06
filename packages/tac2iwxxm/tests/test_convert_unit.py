@@ -46,6 +46,31 @@ def test_convert_iwxxm_us_profile_ok() -> None:
     assert result.ir["sea_level_pressure_hpa"] == 1014.9
 
 
+@pytest.mark.parametrize(
+    ("profile", "product", "tac"),
+    [
+        ("annex3", "METAR", "METAR KJFK 231751Z 18012KT 10SM FEW040 15/07 A3005="),
+        ("iwxxm_us", "METAR", "METAR KJFK 231751Z 18012KT 10SM FEW040 15/07 A3005 RMK AO2="),
+        ("AU_BOM", "METAR", "METAR YSSY 231730Z AUTO 18012KT 9999 FEW030 18/10 Q1017="),
+        ("NZ_CAA_MET", "METAR", "METAR NZAA 231700Z AUTO VRB03KT 9999 FEW020 14/09 Q1015="),
+    ],
+)
+def test_convert_rejects_profile_scoped_3_0_0_for_non_ca_profiles(
+    profile: str,
+    product: str,
+    tac: str,
+) -> None:
+    result = convert(
+        tac,
+        product=product,
+        profile=profile,
+        iwxxm_version="3.0.0",
+    )
+    assert result.ok is False
+    assert result.issues[0].code == "INVALID_IWXXM_VERSION"
+    assert "3.0.0" in result.issues[0].message
+
+
 def test_convert_parse_error_returns_ok_false() -> None:
     result = convert("NOT A REPORT", product="METAR")
     assert result.ok is False
