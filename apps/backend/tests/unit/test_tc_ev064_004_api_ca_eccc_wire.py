@@ -92,6 +92,50 @@ def test_tc_ev064_004_ca_eccc_rejects_wrong_iwxxm_version(client: TestClient) ->
     assert response.status_code in {400, 422}, response.text[:500]
 
 
+@pytest.mark.parametrize("semantic_profile", ["ICAO_2025", "US_FAA_NWS", "AU_BOM", "NZ_CAA_MET"])
+def test_tc_ev064_004_non_ca_profiles_reject_profile_scoped_3_0_0(
+    client: TestClient,
+    semantic_profile: str,
+) -> None:
+    response = client.post(
+        "/api/v1/convert",
+        files=_convert_files(
+            semantic_profile=(None, semantic_profile),
+            iwxxm_version=(None, _CA_IWXXM_VERSION),
+        ),
+    )
+    assert response.status_code == 400, response.text[:500]
+    detail = response.json()["detail"]
+    assert detail["issues"][0]["code"] == "INVALID_IWXXM_VERSION"
+
+
+def test_tc_ev064_004_ca_eccc_defaults_profile_pinned_version_when_omitted(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: list[dict] = []
+
+    def fake_convert(tac: str, **kwargs):
+        seen.append(kwargs)
+        return "<iwxxm:METAR xmlns:iwxxm='http://icao.int/iwxxm/3.0'/>", None
+
+    monkeypatch.setattr(api_module, "convert_metar_tac_with_metadata", fake_convert)
+
+    response = client.post(
+        "/api/v1/convert",
+        files={
+            "manual_text": (None, _CA_METAR),
+            "product": (None, "METAR"),
+            "semantic_profile": (None, "CA_ECCC"),
+            "lint": (None, "false"),
+        },
+    )
+    assert response.status_code == 200, response.text[:500]
+    assert seen
+    assert seen[0].get("profile") == "ca_eccc"
+    assert seen[0].get("iwxxm_version") == _CA_IWXXM_VERSION
+
+
 def test_tc_ev064_004_validate_accepts_ca_eccc_profile(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,

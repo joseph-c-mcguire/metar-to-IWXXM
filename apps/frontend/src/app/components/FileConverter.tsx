@@ -77,6 +77,7 @@ import {
   CA_ECCC_IWXXM_VERSION,
   type IwxxmVersionId,
   coerceIwxxmVersion,
+  coerceIwxxmVersionForProfile,
   iwxxmVersionOptionsForProfile,
 } from '@/utils/iwxxmVersions';
 import { signOutWithScope } from '/utils/supabase/logout';
@@ -586,9 +587,10 @@ export function FileConverter({
         if (stored) {
           const prefs = JSON.parse(stored);
           const profile = hydrateSemanticProfile(prefs.profile);
-          const iwxxmVersion = isCaEcccProfile(profile)
-            ? CA_ECCC_IWXXM_VERSION
-            : coerceIwxxmVersion(prefs.iwxxmVersion);
+          const iwxxmVersion = coerceIwxxmVersionForProfile(
+            profile,
+            prefs.iwxxmVersion,
+          );
 
           setConversionParams({
             bulletinId: prefs.bulletinIdExample || 'SAAA00',
@@ -711,10 +713,14 @@ export function FileConverter({
         }
         if (typeof params.profile === 'string') {
           next.profile = hydrateSemanticProfile(params.profile);
-          if (isCaEcccProfile(next.profile)) {
-            next.iwxxmVersion = CA_ECCC_IWXXM_VERSION;
-          }
         }
+        const rawIwxxmVersion =
+          typeof params.iwxxm_version === 'string'
+            ? params.iwxxm_version
+            : typeof params.iwxxmVersion === 'string'
+              ? params.iwxxmVersion
+              : next.iwxxmVersion;
+        next.iwxxmVersion = coerceIwxxmVersionForProfile(next.profile, rawIwxxmVersion);
         if (typeof params.exchange_profile === 'string') {
           next.exchangeProfile = coerceExchangeProfile(params.exchange_profile);
         } else if (typeof params.exchangeProfile === 'string') {
@@ -753,9 +759,7 @@ export function FileConverter({
       if (stored) {
         const prefs = JSON.parse(stored);
         const profile = hydrateSemanticProfile(prefs.profile);
-        const iwxxmVersion = isCaEcccProfile(profile)
-          ? CA_ECCC_IWXXM_VERSION
-          : coerceIwxxmVersion(prefs.iwxxmVersion);
+        const iwxxmVersion = coerceIwxxmVersionForProfile(profile, prefs.iwxxmVersion);
 
         setConversionParams({
           bulletinId: prefs.bulletinIdExample || 'SAAA00',
@@ -2280,11 +2284,10 @@ export function FileConverter({
                         setConversionParams((prev) => ({
                           ...prev,
                           profile,
-                          iwxxmVersion: isCaEcccProfile(profile)
-                            ? CA_ECCC_IWXXM_VERSION
-                            : prev.iwxxmVersion === CA_ECCC_IWXXM_VERSION
-                              ? DEFAULT_IWXXM_VERSION
-                              : prev.iwxxmVersion,
+                          iwxxmVersion: coerceIwxxmVersionForProfile(
+                            profile,
+                            prev.iwxxmVersion,
+                          ),
                         }));
                       }}
                       className="min-w-[9.5rem] shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"

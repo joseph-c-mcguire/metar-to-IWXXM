@@ -1580,7 +1580,7 @@ export interface components {
             /**
              * Iwxxm Version
              * @description Target IWXXM version: 2025-2 (latest), 2023-1 (previous), or 2025-1 (auto-remaps to 2025-2)
-             * @default 2025-2
+             * @default
              */
             iwxxm_version: string;
             /**
@@ -1686,7 +1686,7 @@ export interface components {
             /**
              * Iwxxm Version
              * @description Target IWXXM version
-             * @default 2025-2
+             * @default
              */
             iwxxm_version: string;
             /**

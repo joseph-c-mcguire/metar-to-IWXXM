@@ -1202,6 +1202,7 @@ describe('API Utils', () => {
         product: 'metar',
         profile: 'annex3',
         exchangeProfile: 'EUR_RODEX',
+        iwxxmVersion: '2023-1',
         lint: false,
         accessToken: 'tok',
       });
@@ -1211,6 +1212,7 @@ describe('API Utils', () => {
         { body: FormData },
       ];
       expect(init.body.get('exchange_profile')).toBe('EUR_RODEX');
+      expect(init.body.get('iwxxm_version')).toBe('2023-1');
     });
 
     it('appends propagate_residuals_to_remarks on convert-bulletin (TC-EV981)', async () => {

@@ -450,7 +450,8 @@ and check gateway health — without replacing one-shot destinations drawer send
 **Actor**: Authenticated meteorological operator or admin (JWT)
 
 **Goal**: Open the ConversionProfile editor, inspect a catalog profile, edit a rule-pack,
-save a signed operator-scoped overlay (M2), and apply it on convert — without collapsing
+save a signed operator-scoped overlay (M2), share approved non-secret profile assets or
+destination references, and apply the result on convert/package flows without collapsing
 the light picker (#1024) or putting credentials in the profile.
 
 **Feature**: F7.w (EV-933)
@@ -464,15 +465,22 @@ the light picker (#1024) or putting credentials in the profile.
    message, standardReference); export/share as downloadable YAML/JSON.
 4. **Overlay (M2)**: save signed operator-scoped overlay to product Postgres (JWT ownership;
    admin may manage shared packs per ownership rules). Reject unsigned / unknown trust.
-5. Return to workbench convert; select overlay (or pack) and convert a sample TAC.
-6. Confirm light semantic/exchange picker (#1024) and dissemination drawer still work.
+5. Share the rule-pack or approved destination metadata/reference without exposing stored
+   credentials or destination secrets.
+6. Return to workbench convert/package; select overlay (or pack), choose a supported profile /
+   IWXXM line combination, and run a sample flow.
+7. Confirm light semantic/exchange picker (#1024) and dissemination drawer still work.
 
 **Acceptance**:
 1. M1 ships rule-pack + inspector before M2 overlay persist (same evolve).
 2. No credentials / destination URIs in profile or overlay payloads (ADR-021/029).
 3. Fail-closed on unsigned overlays and unknown profile ids.
-4. UJ-069 / #1024 and UJ-027–030 / UJ-071 remain green.
-5. H4–H5 when FE editor routes deploy; operator copy free of internal planning ids (EV-048).
+4. Share flows may expose only approved non-secret profile assets or destination references;
+   destination credentials remain memory-only.
+5. Supported profile and IWXXM line choices remain explicit in the operator flow, including
+   cross-version conversion requirements tracked under milestone 4.
+6. UJ-069 / #1024 and UJ-027–030 / UJ-071 remain green.
+7. H4–H5 when FE editor routes deploy; operator copy free of internal planning ids (EV-048).
 
 **Errors**: 401/403 without JWT; 400 unsigned/invalid overlay; ownership 403 on foreign packs.
 

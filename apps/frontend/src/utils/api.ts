@@ -189,8 +189,9 @@ export async function convertMetarToIwxxm(params: {
     formData.append('exchange_profile', params.exchangeProfile.trim());
   }
 
-  // Add IWXXM version (default to 2025-2)
-  formData.append('iwxxm_version', params.iwxxmVersion || DEFAULT_IWXXM_VERSION);
+  if (params.iwxxmVersion?.trim()) {
+    formData.append('iwxxm_version', params.iwxxmVersion.trim());
+  }
 
   // Add validation flag (default to false)
   formData.append('validate_output', params.validateOutput ? 'true' : 'false');
@@ -305,7 +306,9 @@ export async function convertBulletin(params: {
   if (params.exchangeProfile?.trim()) {
     formData.append('exchange_profile', params.exchangeProfile.trim());
   }
-  formData.append('iwxxm_version', params.iwxxmVersion || DEFAULT_IWXXM_VERSION);
+  if (params.iwxxmVersion?.trim()) {
+    formData.append('iwxxm_version', params.iwxxmVersion.trim());
+  }
   formData.append('lint', params.lint === false ? 'false' : 'true');
   if (params.propagateResidualsToRemarks === true) {
     formData.append('propagate_residuals_to_remarks', 'true');

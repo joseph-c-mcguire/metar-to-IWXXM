@@ -127,10 +127,10 @@ Unified manual live test harness against **DOKS** production endpoints after F30
 | UJ-068 | F7.v/F15 (EV-061; EV-062) | Validation Issues Catalog (#1014; #1017 deepen) | **H4–H5 required** | TC-EV061-1014-001..004; TC-EV062-001..006 |
 | UJ-073 | F7.v/F15 (EV-1120) | Profile-scoped Validation Issues Catalog (#1121–#1123) | **H4–H5 when FE ships** | TC-EV1120-001..009 |
 | UJ-072d | F7.w (EV-1120) | Glanceable Profile summary + blocks + examples (#1145) | **H4–H5 when FE ships** | TC-EV1120-010..016 |
-| UJ-069 | F35/F36 (EV-063/EV-090/EV-093) | Semantic convert → exchange package (`GLOBAL_AFS`) | T2 / **T3**; **H4–H5** (#1024 FE) | TC-EV063-001..006; TC-EV090-*; TC-EV093-* |
+| UJ-069 | F35/F36 (EV-063/EV-090/EV-093; M4 deepen) | Semantic convert → exchange package (`GLOBAL_AFS`) with explicit profile/IWXXM-line compatibility | T2 / **T3**; **H4–H5** (#1024 FE) | TC-EV063-001..006; TC-EV090-*; TC-EV093-*; milestone 4 cross-version follow-ons |
 | UJ-070 | F6+F9+F7.q (EV-981 / #981) | Opt-in propagate decode residuals into remarks / HRT + QM indicator | **H4–H5 required** | TC-EV981-001..005 |
 | UJ-071 | F16–F19 deepen (EV-936 / #936) | Dissemination ops — plan/audit/SQL mapping/gateway health | H6′; **H4–H5** when FE deploy | TC-F16-OPS-001..006 |
-| UJ-072 | F7.w deepen (EV-933 / #933) | ConversionProfile editor — rule pack / overlay / convert | **H4–H5** when FE deploy | TC-EV933-001..006 |
+| UJ-072 | F7.w deepen (EV-933 / #933; M4 sharing) | ConversionProfile editor — rule pack / overlay / share non-secret assets / convert-package | **H4–H5** when FE deploy | TC-EV933-001..006 + milestone 4 sharing regressions |
 | UJ-DEV-009 | F34 deepen (EV-061) | stage→main full CI+E2E+lint+typecheck (#1015) | CI | TC-EV061-1015-001..002 |
 | LIVE-F6-030 | F6 chore (EV-061) | Live bulletin multipart field `files` (#1011) | Live H7 | TC-LIVE-F6-030 (fix harness) |
 | UJ-OPS-002 | F30 deepen (EV-057) | Prod apex → app redirect (#948) | ops / T3 | TC-EV057-948-001..003 |

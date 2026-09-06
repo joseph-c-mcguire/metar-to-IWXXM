@@ -14,6 +14,7 @@ from uuid import UUID
 from dissemination.packaging import apply_exchange_packaging
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
+from tac2iwxxm.profiles.ca_eccc import CA_IWXXM_VERSION
 from tac_validate import lint as tac_lint_fn
 
 from src import api as api_surface
@@ -50,6 +51,47 @@ from tac2iwxxm import BulletinSplitError, iwxxm_filename, parse_ahl
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["Conversion"])
+
+
+def _resolve_effective_iwxxm_version(
+    requested_version: str,
+    *,
+    semantic_canonical: str | None,
+    emit_profile: str,
+) -> str:
+    """Resolve and validate request IWXXM version for a semantic profile."""
+    requested = requested_version.strip()
+    if not requested:
+        requested = CA_IWXXM_VERSION if semantic_canonical == "ca_eccc" else "2025-2"
+
+    try:
+        from src.config.iwxxm_versions import get_version_config_for_emit_profile, normalize_version
+    except ImportError:
+        from config.iwxxm_versions import get_version_config_for_emit_profile, normalize_version
+
+    try:
+        normalized = normalize_version(requested)
+        get_version_config_for_emit_profile(normalized, emit_profile)
+    except ValueError as e:
+        logger.warning("[CONVERT] Invalid IWXXM version requested: %s", requested)
+        raise HTTPException(
+            status_code=400,
+            detail=ErrorDetail(
+                message=f"Invalid IWXXM version: {e}",
+                errors=[str(e)],
+                issues=[
+                    ConversionIssue(
+                        source="request",
+                        message=str(e),
+                        severity=ConversionIssueSeverity.ERROR,
+                        hint="Use a supported IWXXM version such as 2025-2 or 2023-1.",
+                        code="INVALID_IWXXM_VERSION",
+                    )
+                ],
+                total_errors=1,
+            ).model_dump(),
+        ) from e
+    return normalized
 
 
 def _wire_payload_dict(raw_obj: object) -> dict[str, Any]:
@@ -98,7 +140,7 @@ async def convert_bulletin(
         default="",
         description="Exchange packaging profile (e.g. GLOBAL_AFS); ignored on convert-only paths",
     ),
-    iwxxm_version: str = Form(default="2025-2", description="Target IWXXM version"),
+    iwxxm_version: str = Form(default="", description="Target IWXXM version"),
     lint: bool = Form(default=True, description="Run tac-validate before each report convert"),
     extensions: list[str] = Form(
         default=[],
@@ -127,6 +169,11 @@ async def convert_bulletin(
     )
     emit_profile: str = str(wire.emit_key)
     profile = emit_profile
+    iwxxm_version = _resolve_effective_iwxxm_version(
+        iwxxm_version,
+        semantic_canonical=wire.semantic_canonical,
+        emit_profile=emit_profile,
+    )
     api_surface._resolve_request_extensions(extensions, None)
 
     content_type = (request.headers.get("content-type") or "").lower()
@@ -323,7 +370,7 @@ async def convert(
     files: list[UploadFile] | None = Depends(api_surface.parse_files),
     manual_text: str = Form(default="", description="Optional manual text input (METAR TAC format)"),
     iwxxm_version: str = Form(
-        default="2025-2",
+        default="",
         description="Target IWXXM version: 2025-2 (latest), 2023-1 (previous), or 2025-1 (auto-remaps to 2025-2)",
     ),
     validate_output: bool = Form(default=False, description="Enable full 7-layer IWXXM validation after conversion"),
@@ -532,6 +579,11 @@ async def convert(
     )
     emit_profile: str = str(wire.emit_key)
     profile = emit_profile
+    iwxxm_version = _resolve_effective_iwxxm_version(
+        iwxxm_version,
+        semantic_canonical=wire.semantic_canonical,
+        emit_profile=emit_profile,
+    )
 
     json_extensions = getattr(request_body, "extensions", None) if request_body is not None else None
     resolved_extensions = api_surface._resolve_request_extensions(extensions, json_extensions)
@@ -704,35 +756,6 @@ async def convert(
             "[CONVERT] include_nil_reasons=false accepted; tac2iwxxm may still emit "
             "nilReason on NIL reports until engine honors the flag (ADR-024 placeholder)",
         )
-
-    # Validate and normalize IWXXM version
-    try:
-        from src.config.iwxxm_versions import get_version_config_for_emit_profile, normalize_version
-    except ImportError:
-        from config.iwxxm_versions import get_version_config_for_emit_profile, normalize_version
-
-    try:
-        iwxxm_version = normalize_version(iwxxm_version)
-        get_version_config_for_emit_profile(iwxxm_version, profile)
-    except ValueError as e:
-        logger.warning("[CONVERT] Invalid IWXXM version requested: %s", iwxxm_version)
-        raise HTTPException(
-            status_code=400,
-            detail=ErrorDetail(
-                message=f"Invalid IWXXM version: {e}",
-                errors=[str(e)],
-                issues=[
-                    ConversionIssue(
-                        source="request",
-                        message=str(e),
-                        severity=ConversionIssueSeverity.ERROR,
-                        hint="Use a supported IWXXM version such as 2025-2 or 2023-1.",
-                        code="INVALID_IWXXM_VERSION",
-                    )
-                ],
-                total_errors=1,
-            ).model_dump(),
-        ) from e
 
     results: list[ConversionResult] = []
     errors: list[str] = []
