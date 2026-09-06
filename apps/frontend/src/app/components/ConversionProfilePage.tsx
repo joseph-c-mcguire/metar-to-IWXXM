@@ -3,7 +3,14 @@
  * Requires sign-in.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+} from 'react';
 import { Loader2 } from 'lucide-react';
 import {
   createOverlay,
@@ -38,6 +45,7 @@ import {
   PROFILES_OVERLAYS_LOADING,
   PROFILES_OVERLAYS_UNAVAILABLE,
   PROFILES_PACK_EXPORT,
+  PROFILES_PACK_IMPORT,
   PROFILES_PACK_MESSAGE,
   PROFILES_PACK_PRODUCT,
   PROFILES_PACK_PROFILE,
@@ -52,6 +60,10 @@ import {
   PROFILES_PACKS_LOADING,
   PROFILES_PACKS_UNAVAILABLE,
 } from '@/utils/conversionProfilesCopy';
+import {
+  createConversionProfileShareBundle,
+  parseConversionProfileShareBundle,
+} from '@/utils/conversionProfileShare';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 
@@ -330,6 +342,7 @@ function ConversionProfileAuthed({ accessToken }: AuthedProps) {
   const [savingOverlay, setSavingOverlay] = useState(false);
   const [packSeedDirty, setPackSeedDirty] = useState(false);
   const [overlaySeedDirty, setOverlaySeedDirty] = useState(false);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const [slug, setSlug] = useState('my-pack');
   const [profile, setProfile] = useState('ICAO_2025');
@@ -502,16 +515,50 @@ function ConversionProfileAuthed({ accessToken }: AuthedProps) {
   };
 
   const onExport = () => {
-    // Invoked only when the export control is enabled (packs loaded and non-empty).
-    const blob = new Blob([JSON.stringify(packs, null, 2)], {
+    const bundle = createConversionProfileShareBundle({
+      rulePacks: packs ?? [],
+      overlays: overlays ?? [],
+    });
+    const blob = new Blob([JSON.stringify(bundle, null, 2)], {
       type: 'application/json',
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'rule-packs.json';
+    a.download = 'conversion-profile-share.json';
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const onImportClick = () => {
+    importInputRef.current?.click();
+  };
+
+  const onImport = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) {
+      return;
+    }
+
+    setSaving(true);
+    setSavingOverlay(true);
+    setError(null);
+    try {
+      const bundle = parseConversionProfileShareBundle(await file.text());
+      for (const pack of bundle.rulePacks) {
+        await createRulePack(accessToken, pack);
+      }
+      for (const overlay of bundle.overlays) {
+        await createOverlay(accessToken, overlay);
+      }
+      await load();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSaving(false);
+      setSavingOverlay(false);
+    }
   };
 
   return (
@@ -710,16 +757,38 @@ function ConversionProfileAuthed({ accessToken }: AuthedProps) {
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-medium">{PROFILES_PACKS_HEADING}</h2>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            data-testid="conversion-profiles-export"
-            onClick={onExport}
-            disabled={!packs || packs.length === 0}
-          >
-            {PROFILES_PACK_EXPORT}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <input
+              ref={importInputRef}
+              className="hidden"
+              data-testid="conversion-profiles-import-input"
+              type="file"
+              accept="application/json,.json"
+              onChange={(event) => void onImport(event)}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              data-testid="conversion-profiles-import"
+              onClick={onImportClick}
+              disabled={saving || savingOverlay}
+            >
+              {PROFILES_PACK_IMPORT}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              data-testid="conversion-profiles-export"
+              onClick={onExport}
+              disabled={
+                (!packs || packs.length === 0) && (!overlays || overlays.length === 0)
+              }
+            >
+              {PROFILES_PACK_EXPORT}
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">

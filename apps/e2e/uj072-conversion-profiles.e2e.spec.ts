@@ -349,6 +349,58 @@ test.describe('UJ-072: ConversionProfile editor (EV-933 / TC-EV933-006)', () => 
     await expect.poll(() => captured.overlaysPost.length).toBe(1);
     expectBearer(captured.overlaysPost[0]!);
 
+    await page.getByTestId('conversion-profiles-import-input').setInputFiles({
+      name: 'conversion-profile-share.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(
+        JSON.stringify({
+          schemaVersion: 1,
+          rulePacks: [
+            {
+              slug: 'shared-pack',
+              profile: 'US_FAA_NWS',
+              product: 'METAR',
+              stage: 'lint',
+              severity: 'warning',
+              when: 'RMK',
+              message: 'shared import',
+              standardReference: 'FMH-1',
+            },
+          ],
+          overlays: [
+            {
+              slug: 'shared-overlay',
+              baseProfileId: 'US_FAA_NWS',
+              body: { lint: true },
+              shared: true,
+            },
+          ],
+        }),
+      ),
+    });
+    await expect.poll(() => captured.rulePacksPost.length).toBe(2);
+    await expect.poll(() => captured.overlaysPost.length).toBe(2);
+    const importedPackBody = captured.rulePacksPost[1]!.postDataJSON() as {
+      slug?: string;
+      profile?: string;
+      standardReference?: string;
+    };
+    expect(importedPackBody).toMatchObject({
+      slug: 'shared-pack',
+      profile: 'US_FAA_NWS',
+      standardReference: 'FMH-1',
+    });
+    const importedOverlayBody = captured.overlaysPost[1]!.postDataJSON() as {
+      slug?: string;
+      baseProfileId?: string;
+      shared?: boolean;
+    };
+    expect(importedOverlayBody).toMatchObject({
+      slug: 'shared-overlay',
+      baseProfileId: 'US_FAA_NWS',
+      shared: true,
+    });
+
     await page.getByTestId('shell-nav-converter').click();
     await expect(
       page.getByRole('heading', { name: /METAR.*IWXXM.*Converter/i }),

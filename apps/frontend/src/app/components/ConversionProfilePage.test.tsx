@@ -2,10 +2,11 @@
  * Vitest for ConversionProfile editor page (TC-EV933-001/002 FE).
  */
 
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConversionProfilePage } from './ConversionProfilePage';
+import { CONVERSION_PROFILE_SHARE_BUNDLE_VERSION } from '@/utils/conversionProfileShare';
 
 const fetchProfileCatalog = vi.fn();
 const listRulePacks = vi.fn();
@@ -51,6 +52,7 @@ const sampleOverlay = {
 describe('ConversionProfilePage', () => {
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
   });
 
   beforeEach(() => {
@@ -225,7 +227,7 @@ describe('ConversionProfilePage', () => {
 
   it('changes selected profile and exports packs', async () => {
     const user = userEvent.setup();
-    const createObjectURL = vi.fn(() => 'blob:pack');
+    const createObjectURL = vi.fn((_blob: Blob) => 'blob:pack');
     const revokeObjectURL = vi.fn();
     vi.stubGlobal('URL', {
       ...URL,
@@ -257,6 +259,227 @@ describe('ConversionProfilePage', () => {
 
     await user.click(screen.getByTestId('conversion-profiles-export'));
     expect(createObjectURL).toHaveBeenCalled();
+    expect(createObjectURL.mock.calls[0]?.[0]).toBeInstanceOf(Blob);
+    const blob = createObjectURL.mock.calls[0]![0] as unknown as Blob;
+    const exported = JSON.parse(await blob.text()) as {
+      schemaVersion: number;
+      rulePacks: Array<Record<string, unknown>>;
+      overlays: Array<Record<string, unknown>>;
+    };
+    expect(exported.schemaVersion).toBe(CONVERSION_PROFILE_SHARE_BUNDLE_VERSION);
+    expect(exported.rulePacks[0]).toMatchObject({
+      slug: 'my-pack',
+      profile: 'ICAO_2025',
+      product: 'METAR',
+    });
+    expect(exported.rulePacks[0]).not.toHaveProperty('user_id');
+    expect(exported.overlays[0]).toMatchObject({
+      slug: 'my-overlay',
+      baseProfileId: 'ICAO_2025',
+      body: {},
+      shared: false,
+    });
+    expect(exported.overlays[0]).not.toHaveProperty('signature');
+    expect(click).toHaveBeenCalled();
+    expect(revokeObjectURL).toHaveBeenCalled();
+  });
+
+  it('imports a share bundle through the create APIs', async () => {
+    const user = userEvent.setup();
+    render(<ConversionProfilePage accessToken="tok" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('conversion-profiles-import')).toBeInTheDocument();
+    });
+
+    const file = new File(
+      [
+        JSON.stringify({
+          schemaVersion: CONVERSION_PROFILE_SHARE_BUNDLE_VERSION,
+          rulePacks: [
+            {
+              slug: 'shared-pack',
+              profile: 'US_FAA_NWS',
+              product: 'METAR',
+              stage: 'lint',
+              severity: 'warning',
+              when: 'RMK',
+              message: 'Preserve RMK',
+              standardReference: 'FMH-1',
+            },
+          ],
+          overlays: [
+            {
+              slug: 'shared-overlay',
+              baseProfileId: 'US_FAA_NWS',
+              body: { note: 'shared' },
+              shared: true,
+            },
+          ],
+        }),
+      ],
+      'profiles-share.json',
+      { type: 'application/json' },
+    );
+
+    await user.upload(screen.getByTestId('conversion-profiles-import-input'), file);
+
+    await waitFor(() => {
+      expect(createRulePack).toHaveBeenCalledWith('tok', {
+        slug: 'shared-pack',
+        profile: 'US_FAA_NWS',
+        product: 'METAR',
+        stage: 'lint',
+        severity: 'warning',
+        when: 'RMK',
+        message: 'Preserve RMK',
+        standardReference: 'FMH-1',
+      });
+    });
+    expect(createOverlay).toHaveBeenCalledWith('tok', {
+      slug: 'shared-overlay',
+      baseProfileId: 'US_FAA_NWS',
+      body: { note: 'shared' },
+      shared: true,
+    });
+  });
+
+  it('shows an import error for an invalid share bundle', async () => {
+    const user = userEvent.setup();
+    render(<ConversionProfilePage accessToken="tok" />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId('conversion-profiles-import-input'),
+      ).toBeInTheDocument();
+    });
+
+    const file = new File(['{not json'], 'broken-share.json', {
+      type: 'application/json',
+    });
+    await user.upload(screen.getByTestId('conversion-profiles-import-input'), file);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('conversion-profiles-error')).toHaveTextContent(
+        'Share bundle must be valid JSON',
+      );
+    });
+    expect(createRulePack).not.toHaveBeenCalled();
+    expect(createOverlay).not.toHaveBeenCalled();
+  });
+
+  it('ignores import changes with no selected file', async () => {
+    render(<ConversionProfilePage accessToken="tok" />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId('conversion-profiles-import-input'),
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByTestId('conversion-profiles-import-input'), {
+      target: { files: [] },
+    });
+
+    await waitFor(() => {
+      expect(createRulePack).not.toHaveBeenCalled();
+      expect(createOverlay).not.toHaveBeenCalled();
+    });
+  });
+
+  it('clicks the hidden import input from the import button', async () => {
+    const user = userEvent.setup();
+    render(<ConversionProfilePage accessToken="tok" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('conversion-profiles-import')).toBeInTheDocument();
+    });
+
+    const input = screen.getByTestId(
+      'conversion-profiles-import-input',
+    ) as HTMLInputElement;
+    const clickSpy = vi.spyOn(input, 'click').mockImplementation(() => {});
+
+    await user.click(screen.getByTestId('conversion-profiles-import'));
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('exports overlays even when rule packs are unavailable', async () => {
+    const user = userEvent.setup();
+    const createObjectURL = vi.fn((_blob: Blob) => 'blob:overlay');
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal('URL', {
+      ...URL,
+      createObjectURL,
+      revokeObjectURL,
+    });
+    const click = vi.fn();
+    const origCreate = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+      const el = origCreate(tag);
+      if (tag === 'a') {
+        Object.defineProperty(el, 'click', { value: click });
+      }
+      return el;
+    });
+    listRulePacks.mockRejectedValue(new Error('packs offline'));
+
+    render(<ConversionProfilePage accessToken="tok" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('conversion-profiles-export')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId('conversion-profiles-export'));
+
+    expect(createObjectURL).toHaveBeenCalled();
+    const blob = createObjectURL.mock.calls[0]![0] as unknown as Blob;
+    const exported = JSON.parse(await blob.text()) as {
+      rulePacks: Array<Record<string, unknown>>;
+      overlays: Array<Record<string, unknown>>;
+    };
+    expect(exported.rulePacks).toEqual([]);
+    expect(exported.overlays).toHaveLength(1);
+    expect(click).toHaveBeenCalled();
+    expect(revokeObjectURL).toHaveBeenCalled();
+  });
+
+  it('exports rule packs even when overlays are unavailable', async () => {
+    const user = userEvent.setup();
+    const createObjectURL = vi.fn((_blob: Blob) => 'blob:pack-only');
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal('URL', {
+      ...URL,
+      createObjectURL,
+      revokeObjectURL,
+    });
+    const click = vi.fn();
+    const origCreate = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+      const el = origCreate(tag);
+      if (tag === 'a') {
+        Object.defineProperty(el, 'click', { value: click });
+      }
+      return el;
+    });
+    listOverlays.mockRejectedValue(new Error('overlays offline'));
+
+    render(<ConversionProfilePage accessToken="tok" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('conversion-profiles-export')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId('conversion-profiles-export'));
+
+    expect(createObjectURL).toHaveBeenCalled();
+    const blob = createObjectURL.mock.calls[0]![0] as unknown as Blob;
+    const exported = JSON.parse(await blob.text()) as {
+      rulePacks: Array<Record<string, unknown>>;
+      overlays: Array<Record<string, unknown>>;
+    };
+    expect(exported.rulePacks).toHaveLength(1);
+    expect(exported.overlays).toEqual([]);
     expect(click).toHaveBeenCalled();
     expect(revokeObjectURL).toHaveBeenCalled();
   });
