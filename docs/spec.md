@@ -109,7 +109,7 @@ after contract spikes #924–#927 close — **those spikes are now closed (ADR-0
 | Logical layer | Purpose | Current home(s) | Contract (ADR) | Runtime gap |
 |---------------|---------|-----------------|----------------|-------------|
 | **Core** | Shared IR types, constants, vendor helpers | `packages/shared`; IR inside `packages/tac2iwxxm` | ADR-037 Option C | Document boundaries only |
-| **Profiles** | Semantic + exchange profile contracts + content | Code: `tac2iwxxm/profiles/*`, `tac_validate/profiles.py`, `dissemination/exchange_registry.py`; content: `docs/domain/profiles/` (ADR-036) | ADR-038 | Loader/resolver; #933 UI |
+| **Profiles** | Semantic + exchange profile contracts, content, and operator-managed profile assets | Code: `tac2iwxxm/profiles/*`, `tac_validate/profiles.py`, `dissemination/exchange_registry.py`; content: `docs/domain/profiles/` (ADR-036) | ADR-038 | Cross-version conversion framing (#908), operator sharing (#1051), and quality backlog closeout (#970) deepen on top of the existing resolver and #933 UI; destination credentials remain outside stored profile objects |
 | **Conversion** | TAC→IWXXM encode/decode | `packages/tac2iwxxm` | ADR-038 | Exchange packaging vs dissemination |
 | **Validation** | Staged TAC then IWXXM | `packages/tac-validate` + `packages/iwxxm-validate` | ADR-039 PipelineResult | Unified runtime; `ca_eccc` reference |
 | **Adapters** | SQL/DB symmetric source/sink mapping | `packages/dissemination` (`db_preflight`, `writer_contract`, `sink`) | ADR-040 MappingConfig | Source poll; sink mapping runtime (#896) |

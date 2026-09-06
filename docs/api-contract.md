@@ -235,6 +235,11 @@ exchange:
 - Alias use → same semantics as canonical id + deprecation signal (response header and/or
   structured field — finalize in Build).
 - Exchange profile selects packaging rules only — **not** F16–F19 sink credentials.
+- Milestone 4 follow-on scope includes supported IWXXM-line conversion framing
+  ([#908](https://github.com/EMPIRIC2/TAC-to-IWXXM/issues/908)) and operator-sharing surfaces
+  ([#1051](https://github.com/EMPIRIC2/TAC-to-IWXXM/issues/1051)), but sharing must stay limited
+  to non-secret profile assets or destination references; convert/lint/validate remain public,
+  while mutate/share/manage profile assets remain JWT-gated.
 
 **Observability** (`GET /metrics`, Prometheus — TC-EV063-006):
 

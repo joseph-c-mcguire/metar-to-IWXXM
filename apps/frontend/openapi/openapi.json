@@ -410,7 +410,7 @@
             "type": "string"
           },
           "iwxxm_version": {
-            "default": "2025-2",
+            "default": "",
             "description": "Target IWXXM version: 2025-2 (latest), 2023-1 (previous), or 2025-1 (auto-remaps to 2025-2)",
             "title": "Iwxxm Version",
             "type": "string"
@@ -542,7 +542,7 @@
             "title": "Files"
           },
           "iwxxm_version": {
-            "default": "2025-2",
+            "default": "",
             "description": "Target IWXXM version",
             "title": "Iwxxm Version",
             "type": "string"

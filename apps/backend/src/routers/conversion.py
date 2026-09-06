@@ -14,6 +14,7 @@ from uuid import UUID
 from dissemination.packaging import apply_exchange_packaging
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
+from tac2iwxxm.profiles.ca_eccc import CA_IWXXM_VERSION
 from tac_validate import lint as tac_lint_fn
 
 from src import api as api_surface
@@ -50,6 +51,16 @@ from tac2iwxxm import BulletinSplitError, iwxxm_filename, parse_ahl
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["Conversion"])
+
+
+def _resolve_effective_iwxxm_version(requested_version: str, *, semantic_canonical: str | None) -> str:
+    """Resolve request IWXXM version, including profile-scoped defaults."""
+    requested = requested_version.strip()
+    if requested:
+        return requested
+    if semantic_canonical == "ca_eccc":
+        return CA_IWXXM_VERSION
+    return "2025-2"
 
 
 def _wire_payload_dict(raw_obj: object) -> dict[str, Any]:
@@ -98,7 +109,7 @@ async def convert_bulletin(
         default="",
         description="Exchange packaging profile (e.g. GLOBAL_AFS); ignored on convert-only paths",
     ),
-    iwxxm_version: str = Form(default="2025-2", description="Target IWXXM version"),
+    iwxxm_version: str = Form(default="", description="Target IWXXM version"),
     lint: bool = Form(default=True, description="Run tac-validate before each report convert"),
     extensions: list[str] = Form(
         default=[],
@@ -127,6 +138,7 @@ async def convert_bulletin(
     )
     emit_profile: str = str(wire.emit_key)
     profile = emit_profile
+    iwxxm_version = _resolve_effective_iwxxm_version(iwxxm_version, semantic_canonical=wire.semantic_canonical)
     api_surface._resolve_request_extensions(extensions, None)
 
     content_type = (request.headers.get("content-type") or "").lower()
@@ -323,7 +335,7 @@ async def convert(
     files: list[UploadFile] | None = Depends(api_surface.parse_files),
     manual_text: str = Form(default="", description="Optional manual text input (METAR TAC format)"),
     iwxxm_version: str = Form(
-        default="2025-2",
+        default="",
         description="Target IWXXM version: 2025-2 (latest), 2023-1 (previous), or 2025-1 (auto-remaps to 2025-2)",
     ),
     validate_output: bool = Form(default=False, description="Enable full 7-layer IWXXM validation after conversion"),
@@ -532,6 +544,7 @@ async def convert(
     )
     emit_profile: str = str(wire.emit_key)
     profile = emit_profile
+    iwxxm_version = _resolve_effective_iwxxm_version(iwxxm_version, semantic_canonical=wire.semantic_canonical)
 
     json_extensions = getattr(request_body, "extensions", None) if request_body is not None else None
     resolved_extensions = api_surface._resolve_request_extensions(extensions, json_extensions)

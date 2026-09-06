@@ -481,7 +481,7 @@ def convert(
     *,
     product: str,
     profile: str = "annex3",
-    iwxxm_version: str = "2025-2",
+    iwxxm_version: str | None = None,
     preview: bool = False,
     emit_translation_centre: bool = False,
     translation_centre_designator: str = "",
@@ -530,6 +530,7 @@ def convert(
         Structured result with XML, IR, and issues.
     """
     product_u = product.upper()
+    requested_iwxxm_version = iwxxm_version or "2025-2"
     resolved = resolve_semantic_profile(profile)
     if resolved is None:
         profile_l = profile.lower()
@@ -538,12 +539,20 @@ def convert(
             code="UNSUPPORTED_PROFILE",
             message=f"profile {profile_l!r} not supported yet",
         )
-        xml = _preview_stub_xml(product_u, iwxxm_version, f"UNSUPPORTED_PROFILE: {issue.message}") if preview else None
+        xml = (
+            _preview_stub_xml(
+                product_u,
+                requested_iwxxm_version,
+                f"UNSUPPORTED_PROFILE: {issue.message}",
+            )
+            if preview
+            else None
+        )
         return ConvertResult(
             ok=False,
             product=product_u,
             profile=profile_l,
-            iwxxm_version=iwxxm_version,
+            iwxxm_version=requested_iwxxm_version,
             xml=xml,
             issues=[issue],
         )
@@ -552,6 +561,9 @@ def convert(
     semantic_profile = resolved.canonical
     deprecated_alias_used = resolved.alias_used
     do_propagate = resolve_propagate_residuals_to_remarks(profile_l, propagate_residuals_to_remarks)
+    effective_iwxxm_version = (
+        CA_IWXXM_VERSION if profile_l == EMIT_CA_ECCC and iwxxm_version is None else requested_iwxxm_version
+    )
 
     def _fail(
         code: str,
@@ -569,12 +581,12 @@ def convert(
             start=span_start,
             end=span_end,
         )
-        xml = _preview_stub_xml(product_u, iwxxm_version, f"{code}: {message}") if preview else None
+        xml = _preview_stub_xml(product_u, effective_iwxxm_version, f"{code}: {message}") if preview else None
         return ConvertResult(
             ok=False,
             product=product_u,
             profile=profile_l,
-            iwxxm_version=iwxxm_version,
+            iwxxm_version=effective_iwxxm_version,
             semantic_profile=semantic_profile,
             deprecated_alias_used=deprecated_alias_used,
             xml=xml,
@@ -609,10 +621,10 @@ def convert(
             "UNSUPPORTED_PROFILE",
             f"profile {profile_l} not supported yet for product {product_u!r}",
         )
-    if profile_l == EMIT_CA_ECCC and iwxxm_version != CA_IWXXM_VERSION:
+    if profile_l == EMIT_CA_ECCC and effective_iwxxm_version != CA_IWXXM_VERSION:
         return _fail(
             "INVALID_IWXXM_VERSION",
-            f"profile ca_eccc requires iwxxm_version {CA_IWXXM_VERSION!r}, got {iwxxm_version!r}",
+            f"profile ca_eccc requires iwxxm_version {CA_IWXXM_VERSION!r}, got {effective_iwxxm_version!r}",
         )
 
     status_override: str | None = None
@@ -638,7 +650,7 @@ def convert(
                 profile_l=profile_l,
                 ir=ir,
             )
-        xml = _emit(product_u, profile_l, ir, iwxxm_version)
+        xml = _emit(product_u, profile_l, ir, effective_iwxxm_version)
     except ValueError as exc:
         message = str(exc)
         if preview:
@@ -649,10 +661,10 @@ def convert(
                 ok=True,
                 product=product_u,
                 profile=profile_l,
-                iwxxm_version=iwxxm_version,
+                iwxxm_version=effective_iwxxm_version,
                 semantic_profile=semantic_profile,
                 deprecated_alias_used=deprecated_alias_used,
-                xml=_quarantine_xml(product_u, tac.strip(), iwxxm_version),
+                xml=_quarantine_xml(product_u, tac.strip(), effective_iwxxm_version),
                 issues=[
                     ConvertIssue(
                         severity="warning",
@@ -739,7 +751,7 @@ def convert(
         ok=True,
         product=product_u,
         profile=profile_l,
-        iwxxm_version=iwxxm_version,
+        iwxxm_version=effective_iwxxm_version,
         semantic_profile=semantic_profile,
         deprecated_alias_used=deprecated_alias_used,
         xml=xml,

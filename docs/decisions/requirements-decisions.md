@@ -1,6 +1,25 @@
 # Requirements Decisions Log
 
-> Stage: 01-requirements | Last updated: 2026-09-03 (EV-933 / #933)
+> Stage: 01-requirements | Last updated: 2026-09-06 (EV-m4-profiles-annex3-us-custom)
+
+## EV-m4-profiles-annex3-us-custom — Milestone 4 profiles
+
+| Topic | Decision | Notes | Status |
+|-------|----------|-------|--------|
+| EV-M4 / manifest | `feature-list`, `spec`, `user-journeys`, `test-plan`, `api-contract` | Skip config/deploy unless a concrete gap appears | confirmed |
+| EV-M4 / milestone shape | Unified profile platform | Semantic + exchange profile content + operator management/sharing + quality coverage | confirmed |
+| EV-M4 / #908 | Core acceptance | Cross-version conversion is in-scope milestone acceptance, not background only | confirmed |
+| EV-M4 / #1051 | Core acceptance with security boundary | Sharing is in scope, but only for non-secret profile assets or destination references | confirmed |
+| EV-M4 / #970 | Core acceptance | RuleCases / fixture backlog is first-class milestone quality scope | confirmed |
+| EV-M4 / journey | Combined `UJ-069` + `UJ-072` anchor | Choose profile → inspect/edit/share → convert/package → preserve picker/drawer | confirmed |
+| EV-M4 / compatibility | Strict | Preserve existing profile picker, dissemination drawer, and public convert/lint/validate posture | confirmed |
+| EV-M4 / auth | JWT for mutate/share/manage | Public convert/lint/validate remains public | confirmed |
+| EV-M4 / UI preview | Declined | Requirements from docs/repo only | confirmed |
+| EV-M4 / contradiction | No stored/shared dissemination credentials | Reject sharing secrets in profile or destination objects | confirmed |
+| EV-M4 / feasibility | Broad docs framing + narrowed build gate | Keep milestone 4 umbrella language, but plan only an executable subset for any later build gate | confirmed |
+
+[Corpus: decisions] [Corpus: product §F35] [Corpus: product §F36] [Corpus: product §F7.w]
+[Corpus: api] [Corpus: journeys §UJ-069] [Corpus: journeys §UJ-072] [Corpus: tests]
 
 ## EV-933 — ConversionProfile editor (#933)
 
